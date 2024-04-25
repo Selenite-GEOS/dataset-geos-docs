@@ -1,3 +1,4 @@
+# TODO: Create venv for python deps and sphinx
 # Copyright 2020 The HuggingFace Datasets Authors and the current dataset script contributor.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +23,8 @@ import os
 import datasets
 
 python_deps = [
-    "h5py",
-    "scipy",
+        #    "h5py",
+        #    "scipy",
     "sphinx",
     "sphinx-markdown-builder",
     "sphinx_design",
