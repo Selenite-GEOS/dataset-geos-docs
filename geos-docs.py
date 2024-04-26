@@ -26,6 +26,7 @@ python_deps = [
         #    "h5py",
         #    "scipy",
     "sphinx",
+    "matplotlib",
     "sphinx-markdown-builder",
     "sphinx_design",
     "sphinx-argparse",
