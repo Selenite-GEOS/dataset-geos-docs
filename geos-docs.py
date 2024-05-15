@@ -104,8 +104,8 @@ class GeosDocs(datasets.GeneratorBasedBuilder):
         ):  # This is the name of the configuration selected in BUILDER_CONFIGS above
             features = datasets.Features(
                 {
-                    "prompt": datasets.Value("string"),
-                    "answer": datasets.Value("string"),
+                    "path": datasets.Value("string"),
+                    "doc": datasets.Value("string"),
                 }
             )
         else:
@@ -191,7 +191,13 @@ class GeosDocs(datasets.GeneratorBasedBuilder):
         data_files = []
         file_count = 0
         for path, _, files in os.walk(geos_docs):
+            if os.path.basename(os.path.normpath(path)).startswith("_"):
+                print("\nskipping folder", path, end="")
+                continue
             for file in files:
+                if file.endswith("js"):
+                    print("\nskipping js", file, end="")
+                    continue
                 filepath = os.path.join(path, file)
                 data_files.append(filepath)
 
@@ -200,8 +206,8 @@ class GeosDocs(datasets.GeneratorBasedBuilder):
                     if self.config.name == "v1":
                         # Yields examples as (key, example) tuples
                         yield filepath, {
-                            "prompt": f"Give me the exact content of the documentation page located at {filepath[len(geos_docs) + 1:]}",
-                            "answer": data,
+                            "path": filepath[len(geos_docs) + 1:],
+                            "doc": data,
                         }
                     else:
                         raise ValueError(f"Unknown configuration {self.config.name}")
