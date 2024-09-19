@@ -20,11 +20,12 @@ This dataset script downloads and builds the GEOS docs dataset.
 
 import json
 import os
+from sys import stderr
 import datasets
 
 python_deps = [
-        #    "h5py",
-        #    "scipy",
+    #    "h5py",
+    #    "scipy",
     "sphinx",
     "matplotlib",
     "sphinx-markdown-builder",
@@ -34,6 +35,11 @@ python_deps = [
     "sphinxcontrib.programoutput",
     "sphinx-rtd-theme",
 ]
+conda_deps = [
+        "texlive-core"
+        ]
+
+targets = ["markdown", "html"]
 
 # TODO: Add BibTeX citation
 # Find for instance the citation on arxiv or on the dataset repo/website
@@ -155,62 +161,60 @@ class GeosDocs(datasets.GeneratorBasedBuilder):
         print("Building docs...")
         geos_src = os.path.join(data_dir["geos"], "GEOS-develop", "src")
         build_dir = os.path.join(data_dir["geos"], "build")
-        subprocess.check_call(["sphinx-build", "-M", "markdown", geos_src, build_dir])
-        markdown_dir = os.path.join(build_dir, "markdown")
-
+        for target in targets:
+            subprocess.check_call(["sphinx-build", "-M", target, geos_src, build_dir])
+        print("Built targets :", os.listdir(build_dir))
         return [
             datasets.SplitGenerator(
-                name=datasets.Split.TRAIN,
+                name="markdown",
                 # These kwargs will be passed to _generate_examples
                 gen_kwargs={
-                    "geos_docs": markdown_dir,
-                    "split": "train",
+                    "build_dir": build_dir,
+                    "target": "markdown",
                 },
             ),
-            # datasets.SplitGenerator(
-            #     name=datasets.Split.VALIDATION,
-            #     # These kwargs will be passed to _generate_examples
-            #     gen_kwargs={
-            #         "filepath": os.path.join(data_dir, "dev.jsonl"),
-            #         "split": "dev",
-            #     },
-            # ),
-            # datasets.SplitGenerator(
-            #     name=datasets.Split.TEST,
-            #     # These kwargs will be passed to _generate_examples
-            #     gen_kwargs={
-            #         "filepath": os.path.join(data_dir, "test.jsonl"),
-            #         "split": "test",
-            #     },
-            # ),
+            datasets.SplitGenerator(
+                name="html",
+                # These kwargs will be passed to _generate_examples
+                gen_kwargs={
+                    "build_dir": build_dir,
+                    "target": "html",
+                },
+            ),
+
         ]
 
     # method parameters are unpacked from `gen_kwargs` as given in `_split_generators`
-    def _generate_examples(self, geos_docs, split):
-        """ This method handles input defined in _split_generators to yield (key, example) tuples from the dataset. """
+    def _generate_examples(self, **kwargs):
+        """This method handles input defined in _split_generators to yield (key, example) tuples from the dataset."""
+        build_dir = kwargs["build_dir"]
+        target = kwargs["target"]
         data_files = []
         file_count = 0
-        for path, _, files in os.walk(geos_docs):
+        for path, _, files in os.walk(os.path.join(build_dir, target)):
+        # for path, _, files in zip(map(lambda d: os.walk(os.path.join(geos_docs, d)), targets)):
             if os.path.basename(os.path.normpath(path)).startswith("_"):
                 print("\nskipping folder", path, end="")
                 continue
             for file in files:
-                if file.endswith("js"):
+                if file.endswith("js") or target == "html" and (not file.endswith(".html") or file in ["search.html", "genindex.html"]):
                     print("\nskipping js", file, end="")
                     continue
                 filepath = os.path.join(path, file)
                 data_files.append(filepath)
-
-                with open(filepath, encoding="utf-8") as f:
-                    data = f.read()
-                    if self.config.name == "v1":
-                        # Yields examples as (key, example) tuples
-                        yield filepath, {
-                            "path": filepath[len(geos_docs) + 1:],
-                            "doc": data,
-                        }
-                    else:
-                        raise ValueError(f"Unknown configuration {self.config.name}")
+                try:
+                    with open(filepath, encoding="utf-8") as f:
+                        data = f.read()
+                        if self.config.name == "v1":
+                            # Yields examples as (key, example) tuples
+                            yield filepath, {
+                                    "path": filepath[len(build_dir) + len(target) + 2 :],
+                                "doc": data,
+                            }
+                        else:
+                            raise ValueError(f"Unknown configuration {self.config.name}")
+                except Exception as e:
+                    print("Skipped binary file ", filepath, file=stderr)
                 file_count += 1
                 if file_count % 50 == 0:
                     pass
